@@ -1,11 +1,12 @@
 """hmac-based authentication for proxy connections"""
 
-import time
-import hmac
-import hashlib
 import base64
+import hashlib
+import hmac
+import time
 from typing import Optional, Tuple
-from .config import SERVICE_SECRET, RE_AUTH_HEADER, RE_PROXY_AUTH_HEADER
+
+from .config import RE_AUTH_HEADER, RE_PROXY_AUTH_HEADER, SERVICE_SECRET
 from .core_logging import logger
 
 
