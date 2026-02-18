@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>proxyguard</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      :root {
+        --bg: #0a0a0f;
+        --surface: #12121a;
+        --border: #1e1e2e;
+        --text: #e0e0e8;
+        --muted: #6e6e82;
+        --accent: #7c5cfc;
+        --accent2: #c084fc;
+        --green: #34d399;
+        --red: #f87171;
+        --orange: #fbbf24;
+        --font:
+          "SF Mono", ui-monospace, "Cascadia Code", "Fira Code", monospace;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        font-family: var(--font);
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* noise overlay */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        pointer-events: none;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+        background-repeat: repeat;
+      }
+
+      /* grid bg */
+      .grid-bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background-image:
+          linear-gradient(rgba(124, 92, 252, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(124, 92, 252, 0.03) 1px, transparent 1px);
+        background-size: 64px 64px;
+      }
+
+      /* glow blob */
+      .glow {
+        position: fixed;
+        width: 600px;
+        height: 600px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(124, 92, 252, 0.12),
+          transparent 70%
+        );
+        filter: blur(80px);
+        pointer-events: none;
+        z-index: 0;
+        animation: drift 20s ease-in-out infinite;
+      }
+      .glow:nth-child(2) {
+        background: radial-gradient(
+          circle,
+          rgba(192, 132, 252, 0.08),
+          transparent 70%
+        );
+        animation: drift2 25s ease-in-out infinite;
+      }
+      @keyframes drift {
+        0%,
+        100% {
+          transform: translate(-20%, -10%);
+        }
+        33% {
+          transform: translate(60%, 20%);
+        }
+        66% {
+          transform: translate(20%, 60%);
+        }
+      }
+      @keyframes drift2 {
+        0%,
+        100% {
+          transform: translate(80%, 70%);
+        }
+        33% {
+          transform: translate(-10%, 40%);
+        }
+        66% {
+          transform: translate(50%, -10%);
+        }
+      }
+
+      .container {
+        position: relative;
+        z-index: 1;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      /* ---- hero ---- */
+      .hero {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 80px 24px;
+      }
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 16px;
+        border-radius: 100px;
+        border: 1px solid var(--border);
+        background: rgba(124, 92, 252, 0.06);
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 32px;
+        animation: fadeUp 0.6s ease both;
+      }
+      .hero-badge .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+        animation: pulse 2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+
+      h1 {
+        font-size: clamp(48px, 8vw, 80px);
+        font-weight: 700;
+        letter-spacing: -3px;
+        line-height: 1;
+        animation: fadeUp 0.6s ease 0.1s both;
+      }
+      h1 span {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .hero-sub {
+        font-size: clamp(16px, 2.5vw, 20px);
+        color: var(--muted);
+        max-width: 520px;
+        margin-top: 24px;
+        letter-spacing: -0.3px;
+        animation: fadeUp 0.6s ease 0.2s both;
+      }
+      .hero-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 40px;
+        flex-wrap: wrap;
+        justify-content: center;
+        animation: fadeUp 0.6s ease 0.3s both;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 28px;
+        border-radius: 10px;
+        font-size: 14px;
+        text-decoration: none;
+        font-family: var(--font);
+        transition: all 0.2s;
+        cursor: pointer;
+        border: none;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #fff;
+        font-weight: 600;
+      }
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(124, 92, 252, 0.3);
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+      .btn-ghost:hover {
+        border-color: var(--accent);
+        background: rgba(124, 92, 252, 0.06);
+      }
+
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ---- terminal ---- */
+      .terminal {
+        max-width: 640px;
+        width: 100%;
+        margin-top: 56px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        overflow: hidden;
+        animation: fadeUp 0.6s ease 0.4s both;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      }
+      .terminal-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+      }
+      .terminal-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+      .terminal-dot:nth-child(1) {
+        background: var(--red);
+      }
+      .terminal-dot:nth-child(2) {
+        background: var(--orange);
+      }
+      .terminal-dot:nth-child(3) {
+        background: var(--green);
+      }
+      .terminal-title {
+        flex: 1;
+        text-align: center;
+        font-size: 12px;
+        color: var(--muted);
+        margin-right: 44px;
+      }
+      .terminal-body {
+        padding: 20px;
+        font-size: 13px;
+        line-height: 1.8;
+      }
+      .terminal-body .prompt {
+        color: var(--green);
+      }
+      .terminal-body .flag {
+        color: var(--accent2);
+      }
+      .terminal-body .comment {
+        color: var(--muted);
+      }
+      .terminal-body .output {
+        color: var(--muted);
+        opacity: 0.7;
+      }
+      .terminal-body .cursor {
+        display: inline-block;
+        width: 8px;
+        height: 16px;
+        background: var(--accent);
+        vertical-align: text-bottom;
+        animation: blink 1s step-end infinite;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0;
+        }
+      }
+
+      /* ---- features ---- */
+      section {
+        padding: 120px 0;
+      }
+      .section-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        color: var(--accent);
+        margin-bottom: 16px;
+      }
+      h2 {
+        font-size: clamp(32px, 5vw, 48px);
+        font-weight: 700;
+        letter-spacing: -2px;
+        line-height: 1.1;
+        margin-bottom: 56px;
+      }
+      .features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+      }
+      .feature {
+        padding: 28px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        transition: all 0.3s;
+      }
+      .feature:hover {
+        border-color: rgba(124, 92, 252, 0.3);
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(124, 92, 252, 0.08);
+      }
+      .feature-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        margin-bottom: 16px;
+        background: rgba(124, 92, 252, 0.1);
+      }
+      .feature h3 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        letter-spacing: -0.5px;
+      }
+      .feature p {
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      /* ---- how it works ---- */
+      .flow {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        position: relative;
+      }
+      .flow::before {
+        content: "";
+        position: absolute;
+        left: 19px;
+        top: 40px;
+        bottom: 40px;
+        width: 1px;
+        background: linear-gradient(
+          var(--border),
+          var(--accent),
+          var(--border)
+        );
+      }
+      .flow-step {
+        display: flex;
+        gap: 24px;
+        padding: 24px 0;
+        position: relative;
+      }
+      .flow-num {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 700;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--accent);
+        z-index: 1;
+      }
+      .flow-step:hover .flow-num {
+        border-color: var(--accent);
+        box-shadow: 0 0 20px rgba(124, 92, 252, 0.2);
+      }
+      .flow-content h3 {
+        font-size: 15px;
+        font-weight: 600;
+        margin-bottom: 4px;
+        letter-spacing: -0.3px;
+      }
+      .flow-content p {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      /* ---- config table ---- */
+      .config-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .config-table th {
+        text-align: left;
+        padding: 14px 20px;
+        background: rgba(124, 92, 252, 0.06);
+        color: var(--accent2);
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        border-bottom: 1px solid var(--border);
+      }
+      .config-table td {
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--border);
+      }
+      .config-table tr:last-child td {
+        border-bottom: none;
+      }
+      .config-table tr:hover td {
+        background: rgba(124, 92, 252, 0.03);
+      }
+      .config-table code {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        background: rgba(124, 92, 252, 0.1);
+        color: var(--accent2);
+      }
+      .config-table .default {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      /* ---- code block ---- */
+      .code-block {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+        overflow: hidden;
+      }
+      .code-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .code-lang {
+        padding: 2px 10px;
+        border-radius: 4px;
+        background: rgba(124, 92, 252, 0.1);
+        color: var(--accent2);
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .code-block pre {
+        padding: 20px;
+        font-size: 13px;
+        line-height: 1.7;
+        overflow-x: auto;
+      }
+      .code-block .kw {
+        color: var(--accent2);
+      }
+      .code-block .fn {
+        color: var(--green);
+      }
+      .code-block .str {
+        color: var(--orange);
+      }
+      .code-block .cm {
+        color: var(--muted);
+      }
+      .code-block .num {
+        color: var(--red);
+      }
+
+      /* ---- stats ---- */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 56px;
+      }
+      .stat {
+        text-align: center;
+        padding: 32px 20px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+      .stat-value {
+        font-size: 36px;
+        font-weight: 700;
+        letter-spacing: -2px;
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .stat-label {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+
+      /* ---- footer ---- */
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 40px 0;
+        text-align: center;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      footer a {
+        color: var(--accent2);
+        text-decoration: none;
+      }
+      footer a:hover {
+        text-decoration: underline;
+      }
+
+      /* ---- scroll animations ---- */
+      .reveal {
+        opacity: 0;
+        transform: translateY(30px);
+        transition: all 0.6s ease;
+      }
+      .reveal.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* ---- responsive ---- */
+      @media (max-width: 640px) {
+        .hero {
+          padding: 60px 16px;
+          min-height: auto;
+          padding-top: 100px;
+        }
+        section {
+          padding: 80px 0;
+        }
+        .flow::before {
+          display: none;
+        }
+        .stats {
+          grid-template-columns: 1fr 1fr;
+        }
+        h1 {
+          letter-spacing: -2px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="grid-bg"></div>
+    <div class="glow"></div>
+    <div class="glow"></div>
+
+    <!-- hero -->
+    <header class="hero">
+      <div class="hero-badge">
+        <span class="dot"></span> v0.1.0 - lightweight &amp; async
+      </div>
+      <h1>proxy<span>guard</span></h1>
+      <p class="hero-sub">
+        a fast, async proxy rotator that tunnels your traffic through a pool of
+        upstream proxies. built for scraping at scale.
+      </p>
+      <div class="hero-actions">
+        <a href="#quickstart" class="btn btn-primary">get started</a>
+        <a href="https://github.com/meinder-a/proxyguard" class="btn btn-ghost">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
+            />
+          </svg>
+          source
+        </a>
+      </div>
+
+      <div class="terminal">
+        <div class="terminal-bar">
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <div class="terminal-title">terminal</div>
+        </div>
+        <div class="terminal-body">
+          <span class="comment"># clone proxyguard</span><br />
+          <span class="prompt">$</span> git clone
+          <span class="flag">git@github.com:meinder-a/proxyguard.git</span> &&
+          cd proxyguard<br /><br />
+          <span class="comment"># add your proxies</span><br />
+          <span class="prompt">$</span> echo
+          <span class="flag">"http://user:pass@1.2.3.4:8080"</span> &gt;
+          proxies.txt<br /><br />
+          <span class="comment"># run it</span><br />
+          <span class="prompt">$</span> make docker-run<br /><br />
+          <span class="output">initialized with 1 upstreams</span><br />
+          <span class="output">starting health check loop</span><br />
+          <span class="output">ProxyGuard | Port 8888</span><br />
+          <span class="prompt">$</span> <span class="cursor"></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- features -->
+    <section>
+      <div class="container">
+        <div class="section-label reveal">capabilities</div>
+        <h2 class="reveal">everything you need.<br />nothing you don't.</h2>
+        <div class="features">
+          <div class="feature reveal">
+            <div class="feature-icon">&#8634;</div>
+            <h3>proxy rotation</h3>
+            <p>
+              automatically distributes requests across your pool of upstream
+              proxies with smart load balancing based on latency and health.
+            </p>
+          </div>
+          <div class="feature reveal">
+            <div class="feature-icon">&#9919;</div>
+            <h3>circuit breaker</h3>
+            <p>
+              dead proxies get pulled from the pool after consecutive failures.
+              they come back when health checks pass again.
+            </p>
+          </div>
+          <div class="feature reveal">
+            <div class="feature-icon">&#128274;</div>
+            <h3>hmac-sha256 auth</h3>
+            <p>
+              secure your gateway with time-based hmac signatures. no one
+              touches your proxies without a valid token.
+            </p>
+          </div>
+          <div class="feature reveal">
+            <div class="feature-icon">&#128204;</div>
+            <h3>sticky sessions</h3>
+            <p>
+              pin a client to a specific proxy for a configurable duration.
+              perfect for session-based scraping workflows.
+            </p>
+          </div>
+          <div class="feature reveal">
+            <div class="feature-icon">&#9889;</div>
+            <h3>hot reload</h3>
+            <p>
+              update your proxy list without restarting. just edit the file and
+              proxyguard picks up changes on the next health check cycle.
+            </p>
+          </div>
+          <div class="feature reveal">
+            <div class="feature-icon">&#128200;</div>
+            <h3>prometheus metrics</h3>
+            <p>
+              built-in /metrics endpoint with connection counts, bytes
+              transferred, upstream failures, and more. plug into grafana.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- how it works -->
+    <section>
+      <div class="container">
+        <div class="section-label reveal">architecture</div>
+        <h2 class="reveal">how it works</h2>
+        <div class="flow">
+          <div class="flow-step reveal">
+            <div class="flow-num">1</div>
+            <div class="flow-content">
+              <h3>client sends CONNECT</h3>
+              <p>
+                your scraper sends a standard HTTP CONNECT request to proxyguard
+                with an optional hmac auth header.
+              </p>
+            </div>
+          </div>
+          <div class="flow-step reveal">
+            <div class="flow-num">2</div>
+            <div class="flow-content">
+              <h3>auth &amp; proxy selection</h3>
+              <p>
+                the request is authenticated, then the best upstream proxy is
+                selected based on health, latency, and sticky session rules.
+              </p>
+            </div>
+          </div>
+          <div class="flow-step reveal">
+            <div class="flow-num">3</div>
+            <div class="flow-content">
+              <h3>tunnel established</h3>
+              <p>
+                a bidirectional tunnel is opened between the client and the
+                upstream proxy. data flows both ways at full speed with
+                tcp_nodelay.
+              </p>
+            </div>
+          </div>
+          <div class="flow-step reveal">
+            <div class="flow-num">4</div>
+            <div class="flow-content">
+              <h3>retry on failure</h3>
+              <p>
+                if an upstream fails, proxyguard retries with a different proxy
+                up to 3 times. the failed proxy's circuit breaker is updated.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- stats -->
+    <section>
+      <div class="container">
+        <div class="section-label reveal">by the numbers</div>
+        <h2 class="reveal">lightweight by design</h2>
+        <div class="stats reveal">
+          <div class="stat">
+            <div class="stat-value">~500</div>
+            <div class="stat-label">lines of core code</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">2</div>
+            <div class="stat-label">dependencies</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">0</div>
+            <div class="stat-label">database required</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">&lt;20mb</div>
+            <div class="stat-label">docker image</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- quickstart -->
+    <section id="quickstart">
+      <div class="container">
+        <div class="section-label reveal">quickstart</div>
+        <h2 class="reveal">up and running<br />in 30 seconds</h2>
+
+        <div class="code-block reveal" style="margin-bottom: 32px">
+          <div class="code-header">
+            <span>docker-compose.yml</span>
+            <span class="code-lang">YAML</span>
+          </div>
+          <pre><span class="kw">services</span>:
+  <span class="fn">proxyguard</span>:
+    <span class="kw">build</span>: .
+    <span class="kw">ports</span>:
+      - <span class="str">"8888:8888"</span>  <span class="cm"># proxy</span>
+      - <span class="str">"9090:9090"</span>  <span class="cm"># dashboard + metrics</span>
+    <span class="kw">volumes</span>:
+      - <span class="str">./proxies.txt:/app/proxies.txt</span>
+    <span class="kw">environment</span>:
+      - <span class="fn">PG_SECRET</span>=<span class="str">your-secret-here</span>
+      - <span class="fn">PG_STICKY_TTL</span>=<span class="num">300</span></pre>
+        </div>
+
+        <div class="code-block reveal" style="margin-bottom: 32px">
+          <div class="code-header">
+            <span>authenticate &amp; connect</span>
+            <span class="code-lang">Python</span>
+          </div>
+          <pre><span class="kw">import</span> time, hmac, hashlib, requests
+
+<span class="kw">def</span> <span class="fn">get_proxy</span>(secret, client_id):
+    ts = <span class="fn">str</span>(<span class="fn">int</span>(time.<span class="fn">time</span>()))
+    sig = hmac.<span class="fn">new</span>(
+        secret.<span class="fn">encode</span>(),
+        <span class="kw">f</span><span class="str">"{client_id}{ts}"</span>.<span class="fn">encode</span>(),
+        hashlib.sha256
+    ).<span class="fn">hexdigest</span>()
+    <span class="kw">return</span> <span class="kw">f</span><span class="str">"http://{client_id}:{ts}:{sig}@localhost:8888"</span>
+
+proxies = {<span class="str">"https"</span>: <span class="fn">get_proxy</span>(<span class="str">"your-secret"</span>, <span class="str">"bot-1"</span>)}
+requests.<span class="fn">get</span>(<span class="str">"https://httpbin.org/ip"</span>, proxies=proxies)</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- config -->
+    <section>
+      <div class="container">
+        <div class="section-label reveal">configuration</div>
+        <h2 class="reveal">env vars. that's it.</h2>
+        <div class="reveal" style="overflow-x: auto">
+          <table class="config-table">
+            <thead>
+              <tr>
+                <th>variable</th>
+                <th>default</th>
+                <th>what it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>PG_SECRET</code></td>
+                <td class="default">dev-secret...</td>
+                <td>hmac signing secret</td>
+              </tr>
+              <tr>
+                <td><code>PG_ENABLE_AUTH</code></td>
+                <td class="default">true</td>
+                <td>toggle hmac authentication</td>
+              </tr>
+              <tr>
+                <td><code>PG_PROXY_FILE</code></td>
+                <td class="default">proxies.txt</td>
+                <td>path to proxy list file</td>
+              </tr>
+              <tr>
+                <td><code>PG_STICKY_TTL</code></td>
+                <td class="default">0</td>
+                <td>session pin duration (seconds)</td>
+              </tr>
+              <tr>
+                <td><code>PROXY_PORT</code></td>
+                <td class="default">8888</td>
+                <td>incoming proxy connections</td>
+              </tr>
+              <tr>
+                <td><code>METRICS_PORT</code></td>
+                <td class="default">9090</td>
+                <td>dashboard &amp; prometheus endpoint</td>
+              </tr>
+              <tr>
+                <td><code>PG_CONNECT_TIMEOUT</code></td>
+                <td class="default">10</td>
+                <td>upstream connect timeout (seconds)</td>
+              </tr>
+              <tr>
+                <td><code>PG_HEALTH_CHECK_INTERVAL</code></td>
+                <td class="default">60</td>
+                <td>seconds between health checks</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- footer -->
+    <footer>
+      <div class="container">
+        <p>
+          proxyguard &mdash; built by
+          <a href="mailto:anthony@meinder.dev">anthony meinder</a> in 🇫🇷 with ❤️
+          &mdash; mit license
+        </p>
+        <p style="margin-top: 8px; opacity: 0.5">
+          because scrapoxy got discontinued and we needed something really
+          opensource anyway
+        </p>
+      </div>
+    </footer>
+
+    <script>
+      // scroll reveal
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              e.target.classList.add("visible");
+              observer.unobserve(e.target);
+            }
+          });
+        },
+        { threshold: 0.1, rootMargin: "0px 0px -40px 0px" },
+      );
+
+      document
+        .querySelectorAll(".reveal")
+        .forEach((el) => observer.observe(el));
+
+      // parallax glow blobs follow scroll
+      window.addEventListener("scroll", () => {
+        const y = window.scrollY;
+        const glows = document.querySelectorAll(".glow");
+        glows[0].style.top = `${y * 0.15}px`;
+        glows[1].style.top = `${y * 0.08 + 200}px`;
+      });
+    </script>
+  </body>
+</html>
