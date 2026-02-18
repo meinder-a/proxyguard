@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  proxy-guard:
+    build: .
+    ports:
+      - "8888:8888" # Proxy Port
+      - "9090:9090" # Metrics Port
+    environment:
+      - PG_SECRET=change-this-to-a-high-entropy-string
+      - PG_ENABLE_AUTH=true
+      # - PG_PROXY_LIST=http://user:pass@mock-upstream:3128
+      - PG_PROXY_FILE=/app/proxies.txt # Uncomment to use file
+    volumes:
+      - ./proxies.txt:/app/proxies.txt:ro
+    # depends_on:
+    #   - mock-upstream
+
+  # mock-upstream:
+  #   image: mitmproxy/mitmproxy
+  #   command: mitmdump -p 3128 --set flow_detail=1
+  #   ports:
+  #     - "3128:3128"

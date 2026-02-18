@@ -1,0 +1,9 @@
+# Format: scheme://user:pass@host:port
+# Lines starting with # are ignored
+# http://user:pass@1.2.3.4:8080
+# socks5://user:pass@5.6.7.8:1080
+
+# http://user:pass@provider.example.com:8005
+# http://user:pass@provider.example.com:8004
+# https://10.0.0.1:3128
+# http://10.0.0.2:8080

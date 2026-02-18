@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProxyGuard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bs-body-font-family: 'Inter', sans-serif;
+            --bs-body-bg: #111315;
+            --bs-card-bg: #1a1d21;
+            --bs-border-color: #2b3035;
+        }
+        
+        body {
+            font-family: var(--bs-body-font-family);
+        }
+
+        .card {
+            background-color: var(--bs-card-bg);
+            border-color: var(--bs-border-color);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card {
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .status-dot {
+            height: 8px;
+            width: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 5px currentColor;
+        }
+        .status-online { color: #0d6efd; background-color: #0d6efd; box-shadow: 0 0 8px rgba(13, 110, 253, 0.5); }
+        .status-offline { color: #dc3545; background-color: #dc3545; box-shadow: 0 0 8px rgba(220, 53, 69, 0.5); }
+
+        .table > :not(caption) > * > * {
+            background-color: transparent;
+            color: #e0e0e0;
+            border-bottom-color: var(--bs-border-color);
+            vertical-align: middle;
+        }
+        
+        .table-hover tbody tr:hover td {
+            background-color: rgba(255,255,255,0.03);
+        }
+
+        .badge-soft-primary { background-color: rgba(13, 110, 253, 0.15); color: #6ea8fe; }
+        .badge-soft-success { background-color: rgba(25, 135, 84, 0.15); color: #75b798; }
+        .badge-soft-danger { background-color: rgba(220, 53, 69, 0.15); color: #ea868f; }
+        
+        .icon-box {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            font-size: 1.25rem;
+        }
+
+        /* Navbar tweaks */
+        .navbar {
+            background-color: #1a1d21 !important;
+            border-bottom: 1px solid var(--bs-border-color);
+        }
+    </style>
+</head>
+<body class="bg-body text-light">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">
+                <i class="fa-solid fa-shield-halved text-primary me-2"></i>ProxyGuard
+            </a>
+            <span id="auth-status-badge" class="badge rounded-pill bg-secondary">
+                <i class="fa-solid fa-circle-notch fa-spin me-1"></i> Checking...
+            </span>
+        </div>
+    </nav>
+
+    <div class="container pb-5">
+        <!-- Global Stats -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="card stat-card h-100 border-0">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="icon-box bg-primary bg-opacity-10 text-primary me-3">
+                            <i class="fa-solid fa-plug"></i>
+                        </div>
+                        <div>
+                            <h6 class="card-subtitle text-muted mb-1">Active Conns</h6>
+                            <h3 class="card-title mb-0" id="stat-active-conns">-</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card h-100 border-0">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="icon-box bg-success bg-opacity-10 text-success me-3">
+                            <i class="fa-solid fa-server"></i>
+                        </div>
+                        <div>
+                            <h6 class="card-subtitle text-muted mb-1">Proxies Online</h6>
+                            <h3 class="card-title mb-0" id="stat-proxies-online">-</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card h-100 border-0">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="icon-box bg-info bg-opacity-10 text-info me-3">
+                            <i class="fa-solid fa-download"></i>
+                        </div>
+                        <div>
+                            <h6 class="card-subtitle text-muted mb-1">Total Download</h6>
+                            <h3 class="card-title mb-0" id="stat-download">-</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card h-100 border-0">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="icon-box bg-warning bg-opacity-10 text-warning me-3">
+                            <i class="fa-solid fa-upload"></i>
+                        </div>
+                        <div>
+                            <h6 class="card-subtitle text-muted mb-1">Total Upload</h6>
+                            <h3 class="card-title mb-0" id="stat-upload">-</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Proxies Table -->
+        <div class="card border-0">
+            <div class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center py-3">
+                <h5 class="mb-0 fw-semibold"><i class="fa-solid fa-network-wired me-2 text-muted"></i>Active Proxies</h5>
+                <div class="d-flex gap-2">
+                    <div class="form-check form-switch d-flex align-items-center">
+                        <input class="form-check-input me-2" type="checkbox" id="hideNonWorking" onchange="fetchProxies()">
+                        <label class="form-check-label text-muted small" for="hideNonWorking">Hide Offline</label>
+                    </div>
+                    <div class="vr mx-2 text-secondary"></div>
+                    <div class="form-check form-switch d-flex align-items-center">
+                        <input class="form-check-input me-2" type="checkbox" id="showOnlyGood" onchange="fetchProxies()">
+                        <label class="form-check-label text-muted small" for="showOnlyGood">Best Only (<500ms)</label>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="bg-light bg-opacity-10 text-secondary small text-uppercase">
+                            <tr>
+                                <th class="ps-4">Status</th>
+                                <th>Location</th>
+                                <th>Exit IP</th>
+                                <th>Host</th>
+                                <th class="text-center">Active</th>
+                                <th class="text-center">Total</th>
+                                <th>Data (Up/Down)</th>
+                                <th>Latency</th>
+                                <th>Last Checked</th>
+                            </tr>
+                        </thead>
+                        <tbody id="proxy-table-body" class="border-top-0">
+                            <!-- Rows will be populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-top border-secondary text-muted text-end py-2">
+                <small><i class="fa-solid fa-rotate me-1"></i> Auto-refreshing every 5s</small>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function formatTime(timestamp) {
+            if (!timestamp) return '<span class="text-muted">-</span>';
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function fetchProxies() {
+            try {
+                const response = await fetch('/api/proxies');
+                const proxies = await response.json();
+                
+                const hideNonWorking = document.getElementById('hideNonWorking').checked;
+                const showOnlyGood = document.getElementById('showOnlyGood').checked;
+
+                const tbody = document.getElementById('proxy-table-body');
+                tbody.innerHTML = '';
+                
+                let totalActive = 0;
+                let totalOnline = 0;
+                let totalDown = 0;
+                let totalUp = 0;
+
+                proxies.forEach(proxy => {
+                    // Aggregates
+                    totalActive += proxy.active_connections || 0;
+                    if (proxy.is_healthy) totalOnline++;
+                    totalUp += proxy.bytes_sent || 0;
+                    totalDown += proxy.bytes_received || 0;
+
+                    // Filter Logic
+                    if (hideNonWorking && !proxy.is_healthy) return;
+                    if (showOnlyGood && (proxy.latency < 0 || proxy.latency > 500)) return;
+
+                    const row = document.createElement('tr');
+                    
+                    const statusClass = proxy.is_healthy ? 'status-online' : 'status-offline';
+                    // Color code latency
+                    let latencyClass = 'text-muted';
+                    if (proxy.latency > 0) {
+                        if (proxy.latency < 200) latencyClass = 'text-success fw-bold';
+                        else if (proxy.latency < 500) latencyClass = 'text-warning';
+                        else latencyClass = 'text-danger';
+                    }
+                    
+                    const latency = proxy.latency >= 0 ? `<span class="${latencyClass}">${proxy.latency.toFixed(0)}ms</span>` : '<span class="text-muted">-</span>';
+                    const exitIp = proxy.exit_ip ? `<span class="font-monospace text-light">${proxy.exit_ip}</span>` : '<span class="text-muted">-</span>';
+                    
+                    let locationHtml = '<span class="text-muted">Unknown</span>';
+                    if (proxy.country_code) {
+                        const flagUrl = `https://flagcdn.com/20x15/${proxy.country_code.toLowerCase()}.png`;
+                        locationHtml = `
+                            <div class="d-flex align-items-center">
+                                <img src="${flagUrl}" width="20" height="15" alt="${proxy.country_code}" class="me-2 rounded shadow-sm">
+                                <span>${proxy.location.split(',')[0]}</span>
+                            </div>
+                        `;
+                    }
+                    
+                    const up = formatBytes(proxy.bytes_sent || 0);
+                    const down = formatBytes(proxy.bytes_received || 0);
+
+                    row.innerHTML = `
+                        <td class="ps-4"><span class="status-dot ${statusClass}"></span></td>
+                        <td>${locationHtml}</td>
+                        <td>${exitIp}</td>
+                        <td><span class="font-monospace small text-muted">${proxy.host}:${proxy.port}</span></td>
+                        <td class="text-center"><span class="badge badge-soft-primary rounded-pill px-2">${proxy.active_connections || 0}</span></td>
+                        <td class="text-center"><span class="text-muted small">${proxy.total_connections || 0}</span></td>
+                        <td><small class="text-muted"><i class="fa-solid fa-arrow-up text-secondary me-1"></i>${up} <span class="mx-1">/</span> <i class="fa-solid fa-arrow-down text-secondary me-1"></i>${down}</small></td>
+                        <td>${latency}</td>
+                        <td><small class="text-muted">${formatTime(proxy.last_checked)}</small></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // Update Stats with animation effect (simple replacement for now)
+                document.getElementById('stat-active-conns').textContent = totalActive;
+                document.getElementById('stat-proxies-online').textContent = totalOnline;
+                document.getElementById('stat-download').textContent = formatBytes(totalDown);
+                document.getElementById('stat-upload').textContent = formatBytes(totalUp);
+
+            } catch (error) {
+                console.error('Error fetching proxies:', error);
+            }
+        }
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                const badge = document.getElementById('auth-status-badge');
+                if (data.auth_enabled) {
+                    badge.innerHTML = '<i class="fa-solid fa-lock me-1"></i> Auth Active';
+                    badge.className = 'badge rounded-pill bg-success bg-opacity-75';
+                } else {
+                    badge.innerHTML = '<i class="fa-solid fa-lock-open me-1"></i> No Auth';
+                    badge.className = 'badge rounded-pill bg-warning text-dark';
+                }
+            } catch (error) {
+                console.error('Error fetching status:', error);
+            }
+        }
+
+        // Initial fetch and interval
+        fetchStatus();
+        fetchProxies();
+        setInterval(fetchProxies, 5000);
+    </script>
+</body>
+</html>
