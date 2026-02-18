@@ -1,17 +1,28 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, call
+"""tests for proxy_guard.server retry logic"""
+
+# pylint: disable=duplicate-code
 import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from proxy_guard import server
 
 
-@pytest.mark.asyncio
-async def test_handle_client_retries_on_upstream_failure():
-    reader = AsyncMock()
+def _make_mock_writer():
+    """create a mock asyncio StreamWriter"""
     writer = MagicMock()
     writer.close = MagicMock()
     writer.wait_closed = AsyncMock()
     writer.drain = AsyncMock()
+    return writer
+
+
+@pytest.mark.asyncio
+async def test_handle_client_retries_on_upstream_failure():
+    """test that handle_client retries with a different proxy on failure"""
+    reader = AsyncMock()
+    writer = _make_mock_writer()
 
     reader.read.side_effect = [
         b"CONNECT example.com:443 HTTP/1.1\r\n\r\n",
@@ -42,7 +53,7 @@ async def test_handle_client_retries_on_upstream_failure():
 
     call_count = 0
 
-    def get_proxy_side_effect(**kwargs):
+    def get_proxy_side_effect(**_kwargs):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
@@ -53,25 +64,23 @@ async def test_handle_client_retries_on_upstream_failure():
     mock_manager.get_proxy.side_effect = get_proxy_side_effect
 
     us_reader_ok = AsyncMock()
-    us_writer_ok = MagicMock()
-    us_writer_ok.close = MagicMock()
-    us_writer_ok.wait_closed = AsyncMock()
-    us_writer_ok.drain = AsyncMock()
+    us_writer_ok = _make_mock_writer()
 
     attempt = 0
 
-    async def mock_try_upstream(upstream, target, user_agent):
+    async def mock_try_upstream(_upstream, _target, _user_agent):
         nonlocal attempt
         attempt += 1
         if attempt == 1:
             raise ConnectionError("Connection refused")
         return us_reader_ok, us_writer_ok
 
-    with patch("proxy_guard.server.MANAGER", mock_manager), \
-         patch("proxy_guard.server.ENABLE_AUTH", False), \
-         patch("proxy_guard.server._try_upstream", side_effect=mock_try_upstream), \
-         patch("proxy_guard.server.pipe", new_callable=AsyncMock):
-
+    with (
+        patch("proxy_guard.server.MANAGER", mock_manager),
+        patch("proxy_guard.server.ENABLE_AUTH", False),
+        patch("proxy_guard.server._try_upstream", side_effect=mock_try_upstream),
+        patch("proxy_guard.server.pipe", new_callable=AsyncMock),
+    ):
         await server.handle_client(reader, writer)
 
     # proxy1 should have had record_failure called
@@ -86,11 +95,9 @@ async def test_handle_client_retries_on_upstream_failure():
 
 @pytest.mark.asyncio
 async def test_handle_client_all_retries_exhausted():
+    """test that handle_client returns 502 when all retries fail"""
     reader = AsyncMock()
-    writer = MagicMock()
-    writer.close = MagicMock()
-    writer.wait_closed = AsyncMock()
-    writer.drain = AsyncMock()
+    writer = _make_mock_writer()
 
     reader.read.side_effect = [
         b"CONNECT example.com:443 HTTP/1.1\r\n\r\n",
@@ -108,13 +115,14 @@ async def test_handle_client_all_retries_exhausted():
     mock_manager = MagicMock()
     mock_manager.get_proxy.return_value = proxy
 
-    async def mock_try_upstream(upstream, target, user_agent):
+    async def mock_try_upstream(_upstream, _target, _user_agent):
         raise ConnectionError("Connection refused")
 
-    with patch("proxy_guard.server.MANAGER", mock_manager), \
-         patch("proxy_guard.server.ENABLE_AUTH", False), \
-         patch("proxy_guard.server._try_upstream", side_effect=mock_try_upstream):
-
+    with (
+        patch("proxy_guard.server.MANAGER", mock_manager),
+        patch("proxy_guard.server.ENABLE_AUTH", False),
+        patch("proxy_guard.server._try_upstream", side_effect=mock_try_upstream),
+    ):
         await server.handle_client(reader, writer)
 
     # Should have returned 502
@@ -124,11 +132,9 @@ async def test_handle_client_all_retries_exhausted():
 
 @pytest.mark.asyncio
 async def test_handle_client_timeout_returns_504():
+    """test that handle_client returns 504 on timeout"""
     reader = AsyncMock()
-    writer = MagicMock()
-    writer.close = MagicMock()
-    writer.wait_closed = AsyncMock()
-    writer.drain = AsyncMock()
+    writer = _make_mock_writer()
 
     reader.read.side_effect = [
         b"CONNECT example.com:443 HTTP/1.1\r\n\r\n",
@@ -146,13 +152,14 @@ async def test_handle_client_timeout_returns_504():
     mock_manager = MagicMock()
     mock_manager.get_proxy.return_value = proxy
 
-    async def mock_try_upstream(upstream, target, user_agent):
+    async def mock_try_upstream(_upstream, _target, _user_agent):
         raise asyncio.TimeoutError()
 
-    with patch("proxy_guard.server.MANAGER", mock_manager), \
-         patch("proxy_guard.server.ENABLE_AUTH", False), \
-         patch("proxy_guard.server._try_upstream", side_effect=mock_try_upstream):
-
+    with (
+        patch("proxy_guard.server.MANAGER", mock_manager),
+        patch("proxy_guard.server.ENABLE_AUTH", False),
+        patch("proxy_guard.server._try_upstream", side_effect=mock_try_upstream),
+    ):
         await server.handle_client(reader, writer)
 
     write_calls = writer.write.call_args_list

@@ -6,13 +6,13 @@ import os
 import random
 import time
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Tuple
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import aiohttp  # pylint: disable=import-error
 
+from .config import HEALTH_CHECK_INTERVAL, HIGH_USAGE_THRESHOLD, MAX_LATENCY, STICKY_TTL
 from .core_logging import logger
-from .config import MAX_LATENCY, HIGH_USAGE_THRESHOLD, HEALTH_CHECK_INTERVAL, STICKY_TTL
 
 CIRCUIT_BREAKER_THRESHOLD = 3
 

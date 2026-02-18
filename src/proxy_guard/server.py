@@ -8,20 +8,20 @@ import socket
 
 from aiohttp import web  # pylint: disable=import-error
 
+from .auth import parse_auth_header, verify_signature
 from .config import (
-    PROXY_PORT,
-    METRICS_PORT,
-    CONNECT_TIMEOUT,
     BUFFER_SIZE,
-    LOG_SAMPLE_RATE,
-    UPSTREAM_LIST,
-    UPSTREAM_FILE,
+    CONNECT_TIMEOUT,
     ENABLE_AUTH,
+    LOG_SAMPLE_RATE,
+    METRICS_PORT,
+    PROXY_PORT,
     RE_REQUEST_LINE,
+    UPSTREAM_FILE,
+    UPSTREAM_LIST,
 )
 from .core_logging import logger, metrics
 from .upstream import ProxyManager
-from .auth import parse_auth_header, verify_signature
 
 # regex to extract user-agent from client connect headers
 RE_USER_AGENT = re.compile(rb"(?i)User-Agent:\s*([^\r\n]+)")
